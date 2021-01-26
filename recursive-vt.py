@@ -29,22 +29,53 @@ class simpleFile:
         return(self.file_name)
 
 class observedEntity:
-    # contains one hash and all file names that share this hash
+    # Contains one hash and all file names that share this hash
+    # It also holds the raw VirusTotal result and provides distilled threat intel information
     def __init__(self, file):
         self.files = []
         self.files.append(file.get_file_name())
         self.hash = file.get_hash()
-        isMalicious = False
-        vt_result = ''
+        self.isMalicious = False
+        self.vt_result = ''
 
     def add_file_name(self, file_name):
+        # if a file has the identical hash like another observed entity, we just add the file name
+        # so that we will poll the VirusTotal result only once.
         self.files.append(file_name)
 
     def get_file_names(self):
+        # returns the array of file names that share the hash and therefore the VirusTotal results.
         return(self.files)
 
     def get_hash(self):
+        # returns the hash of the observed entity, also used for checking against VirusTotal
         return(self.hash)
+
+    def add_virustotal_result(self, result):
+        self.vt_result = result
+
+    def get_virustotal_result(self):
+        return(self.vt_result)
+
+    def is_malicious(self):
+        # the definition of "malicious" is not fixed.
+        # What we say here is that if 8 or more scan engines discover the file to be malicious,
+        # then we deem it potentially malicious.
+        # We could of course also use a ratio etc. (15%...)
+        #TODO
+        return(False)
+
+    def count_total_scanners(self):
+        # number of AV scanners that were used to check this file
+        # TODO
+        return(10)
+
+    def count_alerting_scanners(self):
+        # number of AV scanners that reported the file as malicious
+        # TODO
+        return(0)
+
+    
 
 class entityHandler:
     # manages observed entities, i.e. adds new entities if they were not observed before
@@ -65,12 +96,28 @@ class entityHandler:
             self.hash_dict.update({new_file.get_hash():observedEntity(new_file)})
 
     def get_entities(self):
+        # returns an iterable of all observed entities so that they can be checked
         return(self.hash_dict.items())
 
     def count_entities(self):
+        # number of entities (i.e. files with unique hash) in scope
         return(len(self.hash_dict))
 
+    def retrieve_virustotal_results(self):
+        # Starts the polling of VirusTotal results for all observed entities
+        # VT rate limit is 4 requests per minute. If we have <= 4 unique hashes,
+        # we can query them without waiting:
+        if entity_handler.count_entities() <= 4:
+            waiting_time = 0
+        else:
+            waiting_time = 15
+
+        for hash, observed_entity in self.get_entities():
+            observed_entity.add_virustotal_result(vt.get_file_report(hash))
+            time.sleep(waiting_time)
+
     
+# Initialize program / load config
 CONFIG_FILE = 'config.yaml'
 
 with open(CONFIG_FILE, 'r') as config_file:
@@ -83,23 +130,20 @@ vt = VirusTotalPublicApi(VT_KEY)
 
 entity_handler = entityHandler()
 
+
+# recursively read all files from the given directory
 for file in glob.iglob(FILE_PATH+'/**/*', recursive=True):
     # only calculate the hash of a file, not of folders:
     if os.path.isfile(file):   
         entity_handler.add_file(file)
        
 
-# VT rate limit is 4 requests per minute. If we have <= 4 unique hashes,
-# we can query them without waiting:
-if entity_handler.count_entities() <= 4:
-    waiting_time = 0
-else:
-    waiting_time = 15
+# VirusTotal polling
+entity_handler.retrieve_virustotal_results()
 
+# return relevant results
 for hash, observed_entity in entity_handler.get_entities():
-    #response = vt.get_file_report(hash)
-    #print(response)
-    #time.sleep(waiting_time)
-    print(f'Hash {hash} for the following files: {observed_entity.get_file_names()}')
-
-#print(hash_dict)
+    #print(f'Hash {hash} for the following files: {observed_entity.get_file_names()}')
+    if observed_entity.is_malicious():
+        print(f'Potentially malicious hash {hash} for the following files: {observed_entity.get_file_names()}')
+        print(f'{observed_entity.count_alerting_scanners()} identified this file as malicious.')
