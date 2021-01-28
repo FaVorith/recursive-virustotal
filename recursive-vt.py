@@ -37,6 +37,8 @@ class observedEntity:
         self.hash = file.get_hash()
         self.isMalicious = False
         self.vt_result = ''
+        self.positives = 0
+        self.total_scanners = 1 # to avoid division by zero error
 
     def add_file_name(self, file_name):
         # if a file has the identical hash like another observed entity, we just add the file name
@@ -54,26 +56,32 @@ class observedEntity:
     def add_virustotal_result(self, result):
         self.vt_result = result
 
+         # Convert json to dictionary:
+        json_data = json.loads(json.dumps(result))
+        if json_data['results']['response_code'] == 1:
+            # we got a valid response
+            self.total_scanners = json_data['results']['total']
+            self.positives = json_data['results']['positives']
+            self.scan_date = json_data['results']['scan_date']
+
     def get_virustotal_result(self):
         return(self.vt_result)
 
     def is_malicious(self):
         # the definition of "malicious" is not fixed.
-        # What we say here is that if 8 or more scan engines discover the file to be malicious,
+        # What we say here is that if a certain number of engines discover the file to be malicious,
         # then we deem it potentially malicious.
-        # We could of course also use a ratio etc. (15%...)
-        #TODO
-        return(False)
+        # We use a ratio here, namely 10%:
+        print(self.count_alerting_scanners() / self.count_total_scanners())
+        return(self.count_alerting_scanners() / self.count_total_scanners() >= 0.1)
 
     def count_total_scanners(self):
         # number of AV scanners that were used to check this file
-        # TODO
-        return(10)
+        return(self.total_scanners)
 
     def count_alerting_scanners(self):
         # number of AV scanners that reported the file as malicious
-        # TODO
-        return(0)
+        return(self.positives)
 
     
 
@@ -147,3 +155,9 @@ for hash, observed_entity in entity_handler.get_entities():
     if observed_entity.is_malicious():
         print(f'Potentially malicious hash {hash} for the following files: {observed_entity.get_file_names()}')
         print(f'{observed_entity.count_alerting_scanners()} identified this file as malicious.')
+        print(f'VT Result is: {observed_entity.get_virustotal_result()}')
+    else:
+        print(f'{observed_entity.get_file_names()} not recognized as malicious')
+        print(f'VT Result is: {observed_entity.get_virustotal_result()}')
+
+        
