@@ -1,4 +1,5 @@
 import yaml
+import sys
 import json
 import hashlib
 import glob
@@ -72,7 +73,7 @@ class observedEntity:
         # What we say here is that if a certain number of engines discover the file to be malicious,
         # then we deem it potentially malicious.
         # We use a ratio here, namely 10%:
-        print(self.count_alerting_scanners() / self.count_total_scanners())
+        #print(self.count_alerting_scanners() / self.count_total_scanners())
         return(self.count_alerting_scanners() / self.count_total_scanners() >= 0.1)
 
     def count_total_scanners(self):
@@ -132,7 +133,13 @@ with open(CONFIG_FILE, 'r') as config_file:
     config = yaml.load(config_file)
     
 VT_KEY = config['virustotal']['api_key']
-FILE_PATH = config['file_path']
+
+# if a path was provided as command line parameter, it will override the config.yaml path:
+if len(sys.argv) > 1:
+    FILE_PATH = sys.argv[1]
+    print(f'Using {FILE_PATH} as parameter to search.')
+else: 
+    FILE_PATH = config['file_path']
 
 vt = VirusTotalPublicApi(VT_KEY)
 
@@ -150,14 +157,25 @@ for file in glob.iglob(FILE_PATH+'/**/*', recursive=True):
 entity_handler.retrieve_virustotal_results()
 
 # return relevant results
+findings_counter = 0
 for hash, observed_entity in entity_handler.get_entities():
     #print(f'Hash {hash} for the following files: {observed_entity.get_file_names()}')
-    if observed_entity.is_malicious():
-        print(f'Potentially malicious hash {hash} for the following files: {observed_entity.get_file_names()}')
-        print(f'{observed_entity.count_alerting_scanners()} identified this file as malicious.')
-        print(f'VT Result is: {observed_entity.get_virustotal_result()}')
-    else:
-        print(f'{observed_entity.get_file_names()} not recognized as malicious')
-        print(f'VT Result is: {observed_entity.get_virustotal_result()}')
+    if not observed_entity.is_malicious():
+        findings_counter+=1
+        print(f'====== {hash} ======')
+        print('Potentially malicious hash for the following (identical) files:')
 
+        i = 0
+        for f in observed_entity.get_file_names():
+            i+=1
+            print(f'{i}: {f}')
+
+        print(f'\n{observed_entity.count_alerting_scanners()} out of {observed_entity.count_total_scanners()} identified this file as malicious.')
+        print('--------------------------------------------------------\n\n\n')
+        #print(f'VT Result is: {observed_entity.get_virustotal_result()}')
+    #else:
+        #print(f'{observed_entity.get_file_names()} not recognized as malicious')
+        #print(f'VT Result is: {observed_entity.get_virustotal_result()}')
+
+print(f'Finished processing {entity_handler.count_entities()} files. {findings_counter} findings were reported.')
         
