@@ -121,7 +121,10 @@ class entityHandler:
         else:
             waiting_time = 15
 
+        i = 0
         for hash, observed_entity in self.get_entities():
+            i+=1
+            print(f'Processing {i} out of {self.count_entities()}...')
             observed_entity.add_virustotal_result(vt.get_file_report(hash))
             time.sleep(waiting_time)
 
@@ -159,8 +162,7 @@ entity_handler.retrieve_virustotal_results()
 # return relevant results
 findings_counter = 0
 for hash, observed_entity in entity_handler.get_entities():
-    #print(f'Hash {hash} for the following files: {observed_entity.get_file_names()}')
-    if not observed_entity.is_malicious():
+    if observed_entity.is_malicious():
         findings_counter+=1
         print(f'====== {hash} ======')
         print('Potentially malicious hash for the following (identical) files:')
@@ -173,9 +175,6 @@ for hash, observed_entity in entity_handler.get_entities():
         print(f'\n{observed_entity.count_alerting_scanners()} out of {observed_entity.count_total_scanners()} identified this file as malicious.')
         print('--------------------------------------------------------\n\n\n')
         #print(f'VT Result is: {observed_entity.get_virustotal_result()}')
-    #else:
-        #print(f'{observed_entity.get_file_names()} not recognized as malicious')
-        #print(f'VT Result is: {observed_entity.get_virustotal_result()}')
-
+        
 print(f'Finished processing {entity_handler.count_entities()} files. {findings_counter} findings were reported.')
         
