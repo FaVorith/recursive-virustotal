@@ -86,8 +86,8 @@ class observedEntity:
         # What we say here is that if a certain number of engines discover the file to be malicious,
         # then we deem it potentially malicious.
         # We use a ratio here, namely 10%:
-        #print(self.count_alerting_scanners() / self.count_total_scanners())
-        return(self.count_alerting_scanners() / self.count_total_scanners() >= 0.1)
+        malicious_threshold = 0.1
+        return(self.count_alerting_scanners() / self.count_total_scanners() >= malicious_threshold)
 
     def count_total_scanners(self):
         # number of AV scanners that were used to check this file
