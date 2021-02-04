@@ -1,3 +1,16 @@
+# coding: utf-8
+ 
+__author__ = 'Fabian Voith'
+__version__ = '1.0.0'
+__email__ = 'admin@fabian-voith.de'
+#########################
+# CREATE YOUR OWN config.yaml BEFORE RUNNING THE SCRIPT!
+# The format should look similar tho this:
+# virustotal:
+#   api_key: *your VT API Key, see: https://support.virustotal.com/hc/en-us/articles/115002088769-Please-give-me-an-API-key *
+# file_path: *top folder from where you want to start your scan, e.g. /opt/NetworkMiner_2-6 *
+#########################
+
 import yaml
 import sys
 import json
@@ -126,14 +139,25 @@ class entityHandler:
             i+=1
             print(f'Processing {i} out of {self.count_entities()}...')
             observed_entity.add_virustotal_result(vt.get_file_report(hash))
+            # The free VirusTotal API is rate-limited to 4 requests per minute.
+            # If you have a premium key without rate limiting, you can remove the following line:
             time.sleep(waiting_time)
 
     
 # Initialize program / load config
 CONFIG_FILE = 'config.yaml'
+try:
+    with open(CONFIG_FILE, 'r') as config_file:
+        config = yaml.load(config_file)
+except FileNotFoundError:
+    print(f"Please create a {CONFIG_FILE} file in the directory of this script and enter you API key there.")
+    print("The format should look similar tho this:\n")
+    print("virustotal:")
+    print("\tapi_key: *your VT API Key* see: https://support.virustotal.com/hc/en-us/articles/115002088769-Please-give-me-an-API-key")
+    print("file_path: *top folder from where you want to start your scan, e.g. /opt/NetworkMiner_2-6 *")
+    sys.exit(f"\nNo {CONFIG_FILE} file found")
 
-with open(CONFIG_FILE, 'r') as config_file:
-    config = yaml.load(config_file)
+
     
 VT_KEY = config['virustotal']['api_key']
 
@@ -172,9 +196,9 @@ for hash, observed_entity in entity_handler.get_entities():
             i+=1
             print(f'{i}: {f}')
 
-        print(f'\n{observed_entity.count_alerting_scanners()} out of {observed_entity.count_total_scanners()} identified this file as malicious.')
+        print(f'\n{observed_entity.count_alerting_scanners()} out of {observed_entity.count_total_scanners()} scanners identified this file as malicious.')
         print('--------------------------------------------------------\n\n\n')
         #print(f'VT Result is: {observed_entity.get_virustotal_result()}')
-        
+
 print(f'Finished processing {entity_handler.count_entities()} files. {findings_counter} findings were reported.')
         
