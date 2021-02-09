@@ -1,7 +1,6 @@
 # coding: utf-8
  
 __author__ = 'Fabian Voith'
-__version__ = '1.0.0'
 __email__ = 'admin@fabian-voith.de'
 #########################
 # CREATE YOUR OWN config.yaml BEFORE RUNNING THE SCRIPT!
@@ -19,6 +18,7 @@ import glob
 import os
 import time
 from virus_total_apis import PublicApi as VirusTotalPublicApi
+#import argparse
 
 class simpleFile:
     # simple file object, automatically calculates hash of itself
@@ -45,7 +45,7 @@ class simpleFile:
 class observedEntity:
     # Contains one hash and all file names that share this hash
     # It also holds the raw VirusTotal result and provides distilled threat intel information
-    def __init__(self, file):
+    def __init__(self, file, alerting_level):
         self.files = []
         self.files.append(file.get_file_name())
         self.hash = file.get_hash()
@@ -53,6 +53,7 @@ class observedEntity:
         self.vt_result = ''
         self.positives = 0
         self.total_scanners = 1 # to avoid division by zero error
+        self.ALERTING_LEVEL = alerting_level
 
     def add_file_name(self, file_name):
         # if a file has the identical hash like another observed entity, we just add the file name
@@ -72,11 +73,17 @@ class observedEntity:
 
          # Convert json to dictionary:
         json_data = json.loads(json.dumps(result))
-        if json_data['results']['response_code'] == 1:
-            # we got a valid response
-            self.total_scanners = json_data['results']['total']
-            self.positives = json_data['results']['positives']
-            self.scan_date = json_data['results']['scan_date']
+        try:
+            if json_data['results']['response_code'] == 1:
+                # we got a valid response
+                self.total_scanners = json_data['results']['total']
+                self.positives = json_data['results']['positives']
+                self.scan_date = json_data['results']['scan_date']
+        except KeyError:
+            print("Received unexpected response from VirusTotal:")
+            print(result)
+            sys.exit(f"\nReceived invalid response from VirusTotal. Did you enter a valid VT API Key in the config file?")
+
 
     def get_virustotal_result(self):
         return(self.vt_result)
@@ -85,9 +92,8 @@ class observedEntity:
         # the definition of "malicious" is not fixed.
         # What we say here is that if a certain number of engines discover the file to be malicious,
         # then we deem it potentially malicious.
-        # We use a ratio here, namely 10%:
-        malicious_threshold = 0.1
-        return(self.count_alerting_scanners() / self.count_total_scanners() >= malicious_threshold)
+        # We use a ratio here, for example 0.1=10%:
+        return(self.count_alerting_scanners() / self.count_total_scanners() >= self.ALERTING_LEVEL)
 
     def count_total_scanners(self):
         # number of AV scanners that were used to check this file
@@ -106,7 +112,7 @@ class entityHandler:
     def __init__(self):
         self.hash_dict = {}
 
-    def add_file(self, file):
+    def add_file(self, file, alerting_level):
         # check if other files with same hash were already processed (duplicates)
         new_file = simpleFile(file)
         existing_duplicates = self.hash_dict.get(new_file.get_hash())
@@ -115,7 +121,7 @@ class entityHandler:
             existing_duplicates.add_file_name(new_file.get_file_name())
         else:
             # We see this hash for the first time and add it to the list:
-            self.hash_dict.update({new_file.get_hash():observedEntity(new_file)})
+            self.hash_dict.update({new_file.get_hash():observedEntity(new_file, alerting_level)})
 
     def get_entities(self):
         # returns an iterable of all observed entities so that they can be checked
@@ -148,20 +154,41 @@ class entityHandler:
 CONFIG_FILE = 'config.yaml'
 try:
     with open(CONFIG_FILE, 'r') as config_file:
-        config = yaml.load(config_file)
+        config = yaml.safe_load(config_file)
 except FileNotFoundError:
-    print(f"Please create a {CONFIG_FILE} file in the directory of this script and enter you API key there.")
-    print("The format should look similar tho this:\n")
-    print("virustotal:")
-    print("\tapi_key: *your VT API Key* see: https://support.virustotal.com/hc/en-us/articles/115002088769-Please-give-me-an-API-key")
-    print("file_path: *top folder from where you want to start your scan, e.g. /opt/NetworkMiner_2-6 *")
-    sys.exit(f"\nNo {CONFIG_FILE} file found")
+    print(f"There was no valid {CONFIG_FILE} file in the directory of this script.")
+    print("The file will be created for you, but you still need to enter your valid VirusTotal API key.")
+    default_yaml = """
+virustotal:
+  api_key: enter your API key
+  alerting_level: 0.1
+file_path: /opt/NetworkMiner_2-6
+recursive: True
+"""
+    with open(CONFIG_FILE, 'w') as config_file:
+        yaml.dump(yaml.safe_load(default_yaml), config_file, default_flow_style=False)  
 
-
+    sys.exit(f"\nNo valid API key in {CONFIG_FILE} file found.")
     
 VT_KEY = config['virustotal']['api_key']
+ALERTING_LEVEL = config['virustotal']['alerting_level']
+IS_RECURSIVE = config['recursive']
 
 # if a path was provided as command line parameter, it will override the config.yaml path:
+
+# create parser
+#parser = argparse.ArgumentParser()
+ 
+# add arguments to the parser
+#parser.add_argument("alertlv")
+#parser.add_argument("path")
+ 
+# parse the arguments
+#args = parser.parse_args()
+
+#print("Alert Level:"+args.alertlv)
+#print("Path:"+args.path)
+
 if len(sys.argv) > 1:
     FILE_PATH = sys.argv[1]
     print(f'Using {FILE_PATH} as parameter to search.')
@@ -172,12 +199,14 @@ vt = VirusTotalPublicApi(VT_KEY)
 
 entity_handler = entityHandler()
 
-
 # recursively read all files from the given directory
-for file in glob.iglob(FILE_PATH+'/**/*', recursive=True):
+for file in glob.iglob(FILE_PATH+'/**/*', recursive=IS_RECURSIVE):
     # only calculate the hash of a file, not of folders:
-    if os.path.isfile(file):   
-        entity_handler.add_file(file)
+    if os.path.isfile(file):
+        # we add the alerting threshold to each individual entity.
+        # This allows us to work with different alerting levels per file (type).
+        # For now we keep it simple and assign the same level (default: 0.1) to all of them.
+        entity_handler.add_file(file, ALERTING_LEVEL)
        
 
 # VirusTotal polling
