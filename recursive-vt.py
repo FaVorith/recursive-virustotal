@@ -3,10 +3,10 @@
 __author__ = 'Fabian Voith'
 __email__ = 'admin@fabian-voith.de'
 #########################
-# CREATE YOUR OWN config.yaml BEFORE RUNNING THE SCRIPT!
-# The format should look similar tho this:
-# virustotal:
-#   api_key: *your VT API Key, see: https://support.virustotal.com/hc/en-us/articles/115002088769-Please-give-me-an-API-key *
+# When first running the script, a default config.yaml will be created.
+# Adjust config.yaml before using the script a second time.
+# Especially the following two values need to be adjusted:
+# api_key: *your VT API Key, see: https://support.virustotal.com/hc/en-us/articles/115002088769-Please-give-me-an-API-key *
 # file_path: *top folder from where you want to start your scan, e.g. /opt/NetworkMiner_2-6 *
 #########################
 
