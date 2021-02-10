@@ -18,7 +18,7 @@ import glob
 import os
 import time
 from virus_total_apis import PublicApi as VirusTotalPublicApi
-#import argparse
+import argparse
 
 class simpleFile:
     # simple file object, automatically calculates hash of itself
@@ -158,11 +158,11 @@ try:
 except FileNotFoundError:
     print(f"There was no valid {CONFIG_FILE} file in the directory of this script.")
     print("The file will be created for you, but you still need to enter your valid VirusTotal API key.")
-    default_yaml = """
+    default_yaml = f"""
 virustotal:
   api_key: enter your API key
   alerting_level: 0.1
-file_path: /opt/NetworkMiner_2-6
+file_path: {os.getcwd()}
 recursive: True
 """
     with open(CONFIG_FILE, 'w') as config_file:
@@ -173,33 +173,29 @@ recursive: True
 VT_KEY = config['virustotal']['api_key']
 ALERTING_LEVEL = config['virustotal']['alerting_level']
 IS_RECURSIVE = config['recursive']
+FILE_PATH = config['file_path']
 
 # if a path was provided as command line parameter, it will override the config.yaml path:
-
 # create parser
-#parser = argparse.ArgumentParser()
+parser = argparse.ArgumentParser()
  
-# add arguments to the parser
-#parser.add_argument("alertlv")
-#parser.add_argument("path")
+# we allow to pass path and alert level as command line parameters.
+# If they are present, they will override the values in config.yaml
+parser.add_argument("path", nargs='?', default=FILE_PATH)
+parser.add_argument("alertlv", nargs='?', default=ALERTING_LEVEL)
  
 # parse the arguments
-#args = parser.parse_args()
+args = parser.parse_args()
+FILE_PATH = args.path
+ALERTING_LEVEL = args.alertlv
 
-#print("Alert Level:"+args.alertlv)
-#print("Path:"+args.path)
-
-if len(sys.argv) > 1:
-    FILE_PATH = sys.argv[1]
-    print(f'Using {FILE_PATH} as parameter to search.')
-else: 
-    FILE_PATH = config['file_path']
-
+# Initializing our VirusTotal API with a key
 vt = VirusTotalPublicApi(VT_KEY)
 
+# The entity handler will take care of managing all files and their VT results
 entity_handler = entityHandler()
 
-# recursively read all files from the given directory
+# recursively (or optionally not) read all files from the given directory
 for file in glob.iglob(FILE_PATH+'/**/*', recursive=IS_RECURSIVE):
     # only calculate the hash of a file, not of folders:
     if os.path.isfile(file):
