@@ -181,13 +181,22 @@ parser = argparse.ArgumentParser()
  
 # we allow to pass path and alert level as command line parameters.
 # If they are present, they will override the values in config.yaml
-parser.add_argument("path", nargs='?', default=FILE_PATH)
-parser.add_argument("alertlv", nargs='?', default=ALERTING_LEVEL)
- 
+parser.add_argument("-p", "--path", default=FILE_PATH, help="Directory of files to be checked, e.g. C:\\SuspiciousFiles\\")
+parser.add_argument("-a", "--alertlv", default=ALERTING_LEVEL, type=float, help="Percentage of reporting scanners to define a file as malicious, e.g. 0.1")
+parser.add_argument("-r", "--recursive", metavar="recursive", default=IS_RECURSIVE, choices=['True', 'False'], help="Include subfolders into search or not, e.g. True")
+
 # parse the arguments
 args = parser.parse_args()
 FILE_PATH = args.path
 ALERTING_LEVEL = args.alertlv
+IS_RECURSIVE = args.recursive
+
+print(f"""
+Working with the following parameters:
+Search path: {FILE_PATH}
+Include subfolders: {IS_RECURSIVE}
+Alerting level: {ALERTING_LEVEL}
+""")
 
 # Initializing our VirusTotal API with a key
 vt = VirusTotalPublicApi(VT_KEY)
