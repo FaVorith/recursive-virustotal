@@ -8,13 +8,3 @@ A detailed description and how to set up and use the script can be found on my b
 https://fabian-voith.de/2021/02/04/script-to-check-virustotal-for-many-files-and-folders/
 
 usage: recursive-vt.py [-h] [-p PATH] [-a ALERTLV] [-r recursive]
-
-optional arguments:
-  -h, --help            show this help message and exit
-  -p PATH, --path PATH  Directory of files to be checked, e.g.
-                        C:\SuspiciousFiles\
-  -a ALERTLV, --alertlv ALERTLV
-                        Percentage of reporting scanners to define a file as
-                        malicious, e.g. 0.1
-  -r recursive, --recursive recursive
-                        Include subfolders into search or not, e.g. True
