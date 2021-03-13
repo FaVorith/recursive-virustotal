@@ -17,6 +17,7 @@ import hashlib
 import glob
 import os
 import time
+# VT API module can be installed via pip install virustotal-api
 from virus_total_apis import PublicApi as VirusTotalPublicApi
 import argparse
 
