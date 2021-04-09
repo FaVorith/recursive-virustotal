@@ -8,6 +8,9 @@ To get a quick overview on suspicious files it is of course much faster to autom
 
 *Update 13/03/2021:* The VirusTotal API module used in this script can be installed via
 > pip install virustotal-api
+> 
+*Update 09/04/2021:* The YAML parser used in this script can be installed via
+> pip install PyYAML
 
 A user kindly pointed out that there was a wrong reference in the documentation on my website. This is now fixed; if the script did not run before because of a "ModuleNotFoundError" you might want to try again with the updated installation instructions.
 
