@@ -10,6 +10,7 @@ __email__ = 'admin@fabian-voith.de'
 # file_path: *top folder from where you want to start your scan, e.g. /opt/NetworkMiner_2-6 *
 #########################
 
+# YAML module can be installed via pip install PyYAML
 import yaml
 import sys
 import json
@@ -20,7 +21,6 @@ import time
 # VT API module can be installed via pip install virustotal-api
 from virus_total_apis import PublicApi as VirusTotalPublicApi
 import argparse
-import pathlib
 
 class simpleFile:
     # simple file object, automatically calculates hash of itself
