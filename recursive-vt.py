@@ -19,6 +19,7 @@ import os
 import time
 from virus_total_apis import PublicApi as VirusTotalPublicApi
 import argparse
+import pathlib
 
 class simpleFile:
     # simple file object, automatically calculates hash of itself
@@ -151,7 +152,7 @@ class entityHandler:
 
     
 # Initialize program / load config
-CONFIG_FILE = 'config.yaml'
+CONFIG_FILE= str(os.path.dirname(os.path.abspath(__file__)))+'\\config.yaml'
 try:
     with open(CONFIG_FILE, 'r') as config_file:
         config = yaml.safe_load(config_file)
